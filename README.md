@@ -1,32 +1,90 @@
 # AI Opportunity Tracker
 
-A **Builder Assignment & MCP Demonstration Project** showcasing modern React development with MCP (Model Context Protocol) integration patterns.
+**Track and manage your career pipeline** — a modern React application with real Airtable cloud persistence, MCP (Model Context Protocol) integration patterns, and a clean component architecture.
 
 ---
 
-## ⚡ Purpose
+## Table of Contents
 
-This project demonstrates:
-
-- ✅ Modern React Development (Vite, Components, Hooks)
-- ✅ State Management (useState, useCallback, useMemo)
-- ✅ Conditional Rendering (Interview fields)
-- ✅ Data Persistence (localStorage)
-- ✅ Clean Architecture (Service Layer Pattern)
-- ✅ **MCP Integration Patterns** (Airtable, Google Calendar)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Airtable Integration](#airtable-integration)
+- [MCP Integrations](#mcp-integrations)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Screenshots](#screenshots)
+- [Project Structure](#project-structure)
+- [Deployment](#deployment)
+- [Future Improvements](#future-improvements)
 
 ---
 
-## 🏗️ Architecture
+## Features
+
+- ✅ **Full CRUD** — Create, read, update, and delete career opportunities
+- ✅ **Cloud Persistence** — Data syncs to Airtable via REST API with Vite proxy
+- ✅ **Local Fallback** — localStorage ensures data survives between sessions
+- ✅ **Real-time Search** — Filter by name or organization as you type
+- ✅ **Category & Status Filters** — Narrow down by Internship, Job, Hackathon, etc.
+- ✅ **Conditional Interview Fields** — Date/time inputs appear only when status is "Interview"
+- ✅ **Stats Dashboard** — Live counters for Total, Applied, Interviews, Accepted, Rejected
+- ✅ **Dark Mode** — System-aware theme toggle with persistent preference
+- ✅ **Form Validation** — Client-side validation for required fields and URLs
+- ✅ **Responsive Design** — Works on desktop, tablet, and mobile
+- ✅ **MCP-Ready Architecture** — Service layer designed for MCP tool consumption
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | React 19 |
+| Build Tool | Vite 8 |
+| Styling | Tailwind CSS 4 |
+| Icons | Lucide React |
+| Notifications | Sonner |
+| Persistence | localStorage + Airtable REST API |
+| E2E Testing | Playwright (via MCP) |
+| Proxy | Vite dev server proxy (PAT injection) |
+
+---
+
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         App.jsx                                 │
-│  ┌─────────────┐     ┌──────────────┐     ┌─────────────────┐  │
-│  │   State     │────→│    UI        │     │  MCP Services   │  │
-│  │  (localStorage)   │  Components  │←────│  (Simulated)    │  │
-│  └─────────────┘     └──────────────┘     └─────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                          App.jsx                                     │
+│  ┌──────────────┐    ┌──────────────────┐    ┌────────────────────┐  │
+│  │    State     │───→│   UI Components   │    │   Service Layer    │  │
+│  │ localStorage │    │                   │←───│                    │  │
+│  │              │    │ Navbar            │    │ airtableMcpService │  │
+│  │ useLocalStore│    │ StatsCards        │    │ calendarMcpService │  │
+│  │              │    │ OpportunityForm   │    └────────┬───────────┘  │
+│  │ useCallback  │    │ SearchBar         │             │              │
+│  │ useMemo      │    │ FilterBar         │    ┌────────▼───────────┐  │
+│  │              │    │ OpportunityList   │    │  Vite Dev Proxy    │  │
+│  └──────┬───────┘    └──────────────────┘    │  /api/airtable      │  │
+│         │                                     │  → api.airtable.com │  │
+│         │                                     └────────────────────┘  │
+└─────────┼──────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────┐
+│  Airtable Base      │
+│  Opportunities Table │
+└─────────────────────┘
+```
+
+### Data Flow
+
+```
+User fills form → React State updated → localStorage persisted
+                                      → POST /api/airtable/... (Vite proxy)
+                                      → Vite injects PAT server-side
+                                      → api.airtable.com/v0
+                                      → Record created in Airtable
 ```
 
 ### Component Tree
@@ -34,259 +92,257 @@ This project demonstrates:
 ```
 App.jsx
 ├── Navbar.jsx              # Logo + dark/light toggle
-├── StatsCards.jsx          # 5 stat cards (metrics)
+├── StatsCards.jsx          # 5 metric cards (Total, Applied, Interviews...)
 ├── OpportunityForm.jsx     # Add/Edit form with conditional fields
-├── SearchBar.jsx           # Real-time search
-├── FilterBar.jsx           # Category + Status filters
+├── SearchBar.jsx           # Real-time search by name/org
+├── FilterBar.jsx           # Category + Status dropdown filters
 └── OpportunityList.jsx
-    ├── ConfirmDialog.jsx   # Delete confirmation
-    └── Empty state         # No opportunities
-```
-
-### Service Layer
-
-```
-src/services/
-├── airtableMcpService.js   # Airtable MCP tool simulation
-└── calendarMcpService.js   # Google Calendar MCP tool simulation
+    ├── ConfirmDialog.jsx   # Delete confirmation modal
+    └── Empty state         # "No opportunities yet" placeholder
 ```
 
 ---
 
-## 🔧 MCP Integration
+## Airtable Integration
 
-### Airtable MCP Service
+### Schema — Opportunities Table
 
-Simulates MCP tool calls for:
+| Field | Type | Description |
+|-------|------|-------------|
+| **Opportunity Name** ★ | Single Line Text | Primary field |
+| Organization | Single Line Text | Company or organization |
+| Opportunity Link | URL | Job posting URL |
+| Category | Single Select | Internship, Job, Hackathon, Fellowship, Freelance, Builder Program, Full-Time, Apprenticeship, Trainee, Part-Time, Contract |
+| Status | Single Select | Interested → Applied → Interview Scheduled → Interview → Offer Received → Accepted / Rejected |
+| Interview Date | Date | Scheduled interview date |
+| Interview Time | Single Line Text | Scheduled time |
+| Notes | Multi Line Text | Free-form notes |
+| Priority | Single Select | ⬆ High / ➡ Medium / ⬇ Low |
+| Created At | Created Time | Auto-generated timestamp |
+| Last Updated | Last Modified | Auto-generated timestamp |
+| Most Relevant Contact (AI) | AI Text | AI-generated contact suggestion |
+| AI Application Status Tips | AI Text | AI-generated tips |
+| Opportunity Category Tags (AI) | Multiple Selects | AI-generated tags |
 
-| Function | MCP Tool Name | Description |
-|----------|---------------|-------------|
-| `createOpportunity()` | `airtable_create_record` | Create new record |
-| `updateOpportunity()` | `airtable_update_record` | Update existing record |
-| `deleteOpportunity()` | `airtable_delete_record` | Delete record |
-| `fetchOpportunities()` | `airtable_list_records` | List all records |
+### How the Vite Proxy Works
 
-### Google Calendar MCP Service
+```js
+// vite.config.js
+server: {
+  proxy: {
+    '/api/airtable': {
+      target: 'https://api.airtable.com/v0',
+      changeOrigin: true,
+      rewrite: (path) => path.replace(/^\/api\/airtable/, ''),
+      configure: (proxy) => {
+        proxy.on('proxyReq', (proxyReq) => {
+          proxyReq.setHeader('Authorization', `Bearer ${env.AIRTABLE_PAT}`)
+        })
+      },
+    },
+  },
+}
+```
 
-Simulates MCP tool calls for:
-
-| Function | MCP Tool Name | Description |
-|----------|---------------|-------------|
-| `createInterviewEvent()` | `google_calendar_create_event` | Create interview event |
-| `updateInterviewEvent()` | `google_calendar_update_event` | Update event |
-| `deleteInterviewEvent()` | `google_calendar_delete_event` | Delete event |
+- The browser calls `POST /api/airtable/{baseId}/{table}`
+- Vite forwards to `https://api.airtable.com/v0/{baseId}/{table}`
+- The PAT is injected server-side — **never exposed to the browser**
+- Gitignored via `*.local` in `.gitignore`
 
 ---
 
-## 🔄 Save Workflow
+## MCP Integrations
 
-```
-User clicks "Save Opportunity"
-         │
-         ▼
-┌─────────────────┐
-│ 1. Validate     │
-│    Form Data    │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ 2. Save to      │
-│    React State  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ 3. Persist to   │
-│    localStorage │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ 4. Airtable MCP │
-│    create/update│
-└────────┬────────┘
-         │
-         ▼
-    Is Status
-     "Interview"?
-         │
-    ┌────┴────┐
-    │         │
-   No        Yes
-    │         │
-    │         ▼
-    │  ┌──────────────────┐
-    │  │ Calendar MCP     │
-    │  │ create event     │
-    │  └──────────────────┘
-    │
-    ▼
-  Finish
-```
+### Airtable MCP (Claude Code Tools)
+
+| Tool | Purpose |
+|------|---------|
+| `list_bases` | Discover available Airtable bases |
+| `list_tables_for_base` | Get table schema and field definitions |
+| `list_records_for_table` | Query records with filters and sorting |
+| `create_records_for_table` | Batch create records (up to 50) |
+| `update_records_for_table` | Update existing records |
+| `delete_records_for_table` | Delete records by ID |
+| `create_field` | Add new fields to a table |
+
+**Type:** HTTP MCP server at `https://mcp.airtable.com/mcp`
+**Auth:** OAuth 2.0 (browser-based authorization flow)
+
+### GitHub MCP
+
+| Tool | Purpose |
+|------|---------|
+| `search_repositories` | Find repositories by name |
+| `create_repository` | Create new GitHub repos |
+| `create_or_update_file` | Push files to a repo |
+| `create_branch` | Create new branches |
+| `list_issues` | List repository issues |
+
+**Type:** Stdio MCP server via `@modelcontextprotocol/server-github`
+**Auth:** GitHub Personal Access Token in `env` block
+
+### Playwright MCP
+
+| Tool | Purpose |
+|------|---------|
+| `browser_navigate` | Navigate to URLs |
+| `browser_snapshot` | Capture accessibility snapshots |
+| `browser_take_screenshot` | Take screenshots |
+| `browser_fill_form` | Fill form fields |
+| `browser_click` | Click elements |
+
+**Type:** Stdio MCP server via `@playwright/mcp`
+
+### Context7 MCP
+
+| Tool | Purpose |
+|------|---------|
+| Resolve-library-id | Look up libraries |
+| Query-docs | Fetch documentation |
+
+**Type:** Stdio MCP server via `@upstash/context7-mcp@latest`
 
 ---
 
-## 🚀 Getting Started
+## Installation
 
-### Install Dependencies
+### Prerequisites
+
+- Node.js 18+
+- npm 9+
+- Airtable account with a Personal Access Token
+
+### Setup
 
 ```bash
+# 1. Clone the repository
+git clone <repo-url>
+cd ai-opportunity-tracker
+
+# 2. Install dependencies
 npm install
-```
 
-### Development
+# 3. Create .env.local with your Airtable PAT
+echo AIRTABLE_PAT=patYOUR_TOKEN_HERE > .env.local
 
-```bash
+# 4. Start the dev server
 npm run dev
+
+# 5. Open http://localhost:5173
 ```
 
-Opens at `http://localhost:5173/`
+### Environment Variables
 
-### Production Build
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `AIRTABLE_PAT` | Yes | Airtable Personal Access Token |
 
-```bash
-npm run build
-npm run preview
-```
+Generate a PAT at: https://airtable.com/create/tokens
+Required scopes: `data.records:read`, `data.records:write`, `schema.bases:read`
 
 ---
 
-## 📁 Project Structure
+## Usage
+
+### Adding an Opportunity
+
+1. Fill in **Opportunity Name** and **Organization** (required)
+2. Select a **Category** (required)
+3. Optionally add a job posting **Link**
+4. Select the current **Status**
+5. If status is **Interview**, date and time fields appear
+6. Click **Save Opportunity**
+
+### Searching & Filtering
+
+- Type in the search bar to filter by name or organization
+- Use the Category dropdown to filter by type
+- Use the Status dropdown to filter by pipeline stage
+- Combine all three for precise filtering
+
+### Editing & Deleting
+
+- Click the **Edit** (pencil) icon on any row to modify
+- Click the **Delete** (trash) icon to remove (with confirmation dialog)
+
+---
+
+## Screenshots
+
+See [docs/screenshots/](docs/screenshots/) for all screenshots.
+
+| Screenshot | Description |
+|------------|-------------|
+| `dashboard.png` | Main dashboard with stats, form, filters, and table |
+| `form.png` | Add Opportunity form with all fields |
+| `search-filter.png` | Search bar and filter dropdowns |
+| `table.png` | Opportunity table with data rows |
+| `airtable-verified.png` | Airtable base confirming record creation |
+
+---
+
+## Project Structure
 
 ```
 ai-opportunity-tracker/
-├── index.html                  # Entry HTML
-├── vite.config.js              # Vite + React + Tailwind v4
-├── package.json                # Dependencies
+├── public/
+│   ├── favicon.svg
+│   └── icons.svg
 ├── src/
-│   ├── main.jsx                # React root
-│   ├── index.css               # Tailwind v4 + theme
-│   ├── App.jsx                 # Main orchestrator
-│   │
 │   ├── components/
-│   │   ├── Navbar.jsx
-│   │   ├── StatsCards.jsx
-│   │   ├── SearchBar.jsx
+│   │   ├── ConfirmDialog.jsx
 │   │   ├── FilterBar.jsx
+│   │   ├── Navbar.jsx
 │   │   ├── OpportunityForm.jsx
 │   │   ├── OpportunityList.jsx
-│   │   └── ConfirmDialog.jsx
-│   │
+│   │   ├── SearchBar.jsx
+│   │   └── StatsCards.jsx
 │   ├── hooks/
-│   │   └── useLocalStorage.js  # localStorage persistence
-│   │
+│   │   └── useLocalStorage.js
 │   ├── services/
-│   │   ├── airtableMcpService.js   # Airtable MCP wrapper
-│   │   └── calendarMcpService.js   # Calendar MCP wrapper
-│   │
-│   └── utils/
-│       ├── constants.js        # Categories, statuses, colors
-│       └── validators.js       # Validation, search, filter
-│
+│   │   ├── airtableMcpService.js
+│   │   └── calendarMcpService.js
+│   ├── utils/
+│   │   ├── constants.js
+│   │   └── validators.js
+│   ├── App.jsx
+│   ├── index.css
+│   └── main.jsx
+├── docs/
+│   ├── screenshots/
+│   ├── mcp-automation.md
+│   ├── PROJECT_SUMMARY.md
+│   └── DEPLOYMENT.md
+├── .gitignore
+├── .env.local.example
+├── eslint.config.js
+├── index.html
+├── package.json
+├── vite.config.js
 └── README.md
 ```
 
 ---
 
-## 🎨 Features
+## Deployment
 
-### Dashboard
-- [x] Statistics cards (Total, Applied, Interviews, Accepted, Rejected)
-- [x] Add/Edit opportunity form
-- [x] Search by name/organization
-- [x] Filter by category/status
-- [x] Sortable opportunity table
-- [x] Delete confirmation dialog
-- [x] Empty state
-
-### Form Features
-- [x] Conditional interview fields (Date + Time)
-- [x] Real-time validation
-- [x] Error messages
-- [x] Loading states
-
-### Data Features
-- [x] localStorage persistence
-- [x] Automatic state sync
-- [x] MCP service simulation logging
-
-### UI/UX
-- [x] Dark/Light mode toggle
-- [x] Responsive design
-- [x] Toast notifications
-- [x] Smooth animations
-- [x] Accessible components
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for step-by-step Vercel deployment instructions.
 
 ---
 
-## 🔍 MCP Demonstration
+## Future Improvements
 
-Open browser console to see MCP tool calls logged:
-
-```
-[MCP] → airtable_create_record { base: 'CareerTracker', table: 'Opportunities', fields: {...} }
-[MCP] → google_calendar_create_event { summary: '...', start: {...}, end: {...} }
-[MCP] → airtable_delete_record { base: 'CareerTracker', table: 'Opportunities', recordId: '...' }
-```
-
-This demonstrates where real MCP tool invocations would occur when connected to:
-- `@modelcontextprotocol/server-airtable`
-- `@modelcontextprotocol/server-google-calendar`
+- [ ] **Google Calendar MCP** — Real interview event creation (currently simulated)
+- [ ] **Authentication** — User login with OAuth
+- [ ] **Multi-user support** — Per-user opportunities
+- [ ] **Email reminders** — Auto-reminders for upcoming interviews
+- [ ] **Analytics dashboard** — Pipeline funnel charts
+- [ ] **Import/Export** — CSV import/export
+- [ ] **PWA** — Offline support with service workers
+- [ ] **Unit tests** — Vitest + React Testing Library
+- [ ] **CI/CD** — GitHub Actions for lint, test, build
 
 ---
 
-## 📝 Testing Scenarios
-
-| # | Scenario | Steps | Expected |
-|---|----------|-------|----------|
-| 1 | Add opportunity | Fill form → Save | Appears in table + localStorage |
-| 2 | Edit opportunity | Click edit → Modify → Update | Changes reflected |
-| 3 | Delete opportunity | Click delete → Confirm | Removed from table |
-| 4 | Search | Type in search box | Results filter in real-time |
-| 5 | Filter | Select category/status | Filtered results shown |
-| 6 | Interview workflow | Status = Interview → Fill date/time → Save | Calendar event logged |
-| 7 | Dark mode | Click moon icon | Theme persists on reload |
-| 8 | Empty state | Delete all | Empty state message shown |
-| 9 | Validation | Submit empty form | Error messages displayed |
-| 10 | MCP logging | Open console → Add opportunity | `[MCP]` logs visible |
-
----
-
-## 🛠️ Tech Stack
-
-| Technology | Purpose |
-|------------|---------|
-| React 19 | UI Framework |
-| Vite 6 | Build Tool + Dev Server |
-| Tailwind CSS v4 | Styling |
-| Lucide React | Icons |
-| Sonner | Toast Notifications |
-
----
-
-## 📌 Notes
-
-- **No API keys or environment variables required** — runs entirely client-side
-- **MCP services are simulated** — logs show where real MCP calls would happen
-- **localStorage is primary persistence** — ensures offline functionality
-- **Portfolio-ready** — clean code, documented, production-quality UI
-
----
-
-## 🔮 Future Enhancements
-
-- [ ] Connect real MCP servers (Airtable, Google Calendar)
-- [ ] Resume attachment support
-- [ ] AI-powered opportunity scoring
-- [ ] Application deadline reminders
-- [ ] Chrome extension for one-click save
-- [ ] Multi-user authentication
-- [ ] Analytics dashboard
-- [ ] Email notifications
-
----
-
-**Built for:** W1 AI Job Application Tracker — Builder Assignment  
-**Author:** Hemant Gautam  
-**Date:** June 2026
+Built with React, Vite, Tailwind CSS, and Airtable.
+MCP integrations powered by Claude Code.
