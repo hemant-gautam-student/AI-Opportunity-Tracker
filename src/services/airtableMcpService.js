@@ -1,20 +1,18 @@
 /**
  * Airtable Service
  *
- * Calls the Airtable REST API through the Vite dev proxy.
- * The proxy injects the PAT server-side, keeping the token out of the browser.
+ * Calls the Airtable REST API through a serverless function.
+ * The API route injects the PAT server-side, keeping the token out of the browser.
  *
  * Architecture:
- *   React Component → airtableMcpService → /api/airtable/* (Vite Proxy)
+ *   React Component → airtableMcpService → /api/airtable-proxy (Vercel Function)
  *                                          → api.airtable.com (PAT added server-side)
  *
  * Base:  appyy1Aeo1gibcStS (AI Opportunity Tracker)
  * Table: Opportunities (tblKjkz7eSgNbnBn9)
  */
 
-const BASE_ID = 'appyy1Aeo1gibcStS';
-const TABLE_NAME = 'Opportunities';
-const PROXY_PATH = `/api/airtable/${BASE_ID}/${TABLE_NAME}`;
+const API_PATH = '/api/airtable-proxy';
 
 /**
  * Map frontend form keys → Airtable field names
@@ -66,7 +64,7 @@ function removeEmpty(obj) {
 export async function createOpportunity(opportunity) {
   const body = { records: [{ fields: toAirtableFields(opportunity) }] };
 
-  const res = await fetch(PROXY_PATH, {
+  const res = await fetch(API_PATH, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -91,8 +89,8 @@ export async function createOpportunity(opportunity) {
 export async function updateOpportunity(recordId, data) {
   const body = { fields: toAirtableFields(data) };
 
-  const res = await fetch(`${PROXY_PATH}/${recordId}`, {
-    method: 'PATCH',
+  const res = await fetch(`${API_PATH}?id=${recordId}`, {
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
@@ -111,7 +109,7 @@ export async function updateOpportunity(recordId, data) {
  * @param {string} recordId - The Airtable record ID
  */
 export async function deleteOpportunity(recordId) {
-  const res = await fetch(`${PROXY_PATH}/${recordId}`, {
+  const res = await fetch(`${API_PATH}?id=${recordId}`, {
     method: 'DELETE',
   });
 
@@ -127,7 +125,7 @@ export async function deleteOpportunity(recordId) {
  * List all opportunity records from Airtable
  */
 export async function listOpportunities() {
-  const res = await fetch(PROXY_PATH);
+  const res = await fetch(`${API_PATH}?records=true`);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

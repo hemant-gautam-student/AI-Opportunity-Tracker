@@ -7,19 +7,5 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
-    server: {
-      proxy: {
-        '/api/airtable': {
-          target: 'https://api.airtable.com/v0',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/airtable/, ''),
-          configure: (proxy) => {
-            proxy.on('proxyReq', (proxyReq) => {
-              proxyReq.setHeader('Authorization', `Bearer ${env.AIRTABLE_PAT}`)
-            })
-          },
-        },
-      },
-    },
   }
 })
